@@ -3,9 +3,12 @@ import pyaudio
 import threading
 import time
 import numpy as np
+import pandas as pd
 import tkinter as tk
 from heapq import nlargest
 from PIL import Image, ImageTk
+
+import retrieval
 
 
 # Setting audio parameters
@@ -20,13 +23,17 @@ class GUI:
         self.root = tk.Tk()
         self.x0 = 30
         self.y0 = 80
+        self.rows = 2
+        self.columns = 5
         self.dim = 350
         self.border = 10
         self.audio_batch = int(FREQ_AUDIO * DURATION / self.dim)
         self.root.title("DSIM Project - Context Based IR")
         self.root.geometry("{}x{}".format(
-            self.x0 * 2 + (5 * self.dim) + (4 * self.border),
-            self.y0 +30 + (2 * self.dim) + (1 * self.border)))
+            self.x0 * 2 + (self.columns * self.dim) +
+                ((self.columns - 1) * self.border),
+            self.y0 +30 + (self.rows * self.dim) +
+                ((self.rows - 1) * self.border)))
         self.root.resizable(False, False)
         self.query_interface = tk.Entry(self.root)
         self.query_interface.place(height=30, width=500,
@@ -40,7 +47,8 @@ class GUI:
         self.images = [tk.Canvas(self.root,
                                  height=200, width=200,
                                  bg="white")
-                       for _ in range(10)]
+                       for _ in range(self.rows * self.columns)]
+        self.df = pd.DataFrame()
         for y in range(2):
             for x in range(5):
                 i = y*5 + x
@@ -49,8 +57,7 @@ class GUI:
                 self.images[i].place(height=self.dim, width=self.dim,
                                      x=self.x0+(self.dim + self.border)*x,
                                      y=self.y0+(self.dim + self.border)*y)
-        self.photos = [(os.path.join("./val2017/", img), score)
-                       for img, score in initialize_random_scores()]
+        self.photo_names = []
         self.root.mainloop()
 
     def clean_images(self):
@@ -58,17 +65,22 @@ class GUI:
             img.delete("all")
 
     def search(self):
+        self.df = retrieval.get_images_from_text(self.query_interface.get())
         self.clean_images()
         self.get_best_images()
 
     def update_images(self, n, score):
-        print(score)
+        selected_photo = self.photo_names[n]
+        self.df = retrieval.update_scores(self.df,
+                                          selected_photo,
+                                          1.0)  # TODO: add method
         self.clean_images()
         self.get_best_images()
 
     def get_best_images(self):
+        self.photo_names = retrieval.get_higher(self.df)
         photos = (open_image(photo, self.dim)
-                  for photo, score in sort_scores(self.photos))
+                  for photo in self.photo_names)
         for canvas, photo in zip(self.images, photos):
             x = (self.dim - photo.width()) / 2
             y = (self.dim - photo.height()) / 2
@@ -103,14 +115,6 @@ def open_image(img_file, size):
     img = Image.open(img_file)
     img.thumbnail((size, size), Image.ANTIALIAS)
     return ImageTk.PhotoImage(img)
-
-def initialize_random_scores():
-    files = os.listdir("./val2017/")
-    scores = [np.random.rand() for _ in files]
-    return zip(files, scores)
-
-def sort_scores(images):
-    return sorted(images, key=lambda e: e[1], reverse=True)
 
 def get_audio_score(audio):
     return np.random.uniform(-1, +1)
