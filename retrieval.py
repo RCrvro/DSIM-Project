@@ -6,15 +6,16 @@ from scipy.spatial import distance
 
 
 DEFAULT_METHOD = "YOLO"
-DEFAULT_DISTANCE = "cosine"
+DEFAULT_DISTANCE = "euclidean"
 CLASSES = [re.sub("\..+", "", filename)
            for filename in os.listdir(os.path.join("./data/",
                                                    DEFAULT_METHOD))]
-
+## BEST RESULTS:
+# YOLO: euclidean
 
 def normalize(x):
     lim, Lim = x.min(), x.max()
-    return (x + lim) / (Lim + lim)
+    return (x - lim) / (Lim - lim)
 
 def dist(x, y, metric):
     dist_fn = {
@@ -30,10 +31,18 @@ def get_best_distance(X, y, metric, best_low):
 
 def update_scores(df, filename, score, metric=DEFAULT_DISTANCE):
     best_low = (metric in {"euclidean", "manhattan"})
-    rif = list(df[df["filename"] == filename]["features"].values)
-    dist = df["features"].map(
-        lambda x: get_best_distance(rif, x, metric, best_low))
-    df["score"] *= score * normalize(dist)
+    classes = list(df["class"].unique())
+    # sorry, it is very bad written (a for D: cycle)
+    # but I cannot do in other ways
+    rif = {c: [] for c in classes}
+    for _, row in df[df["filename"] == filename].iterrows():
+        rif[row["class"]].append(row["features"])
+    dist = df.apply(
+        lambda row: get_best_distance(rif[row["class"]], row["features"],
+                                      metric, best_low),
+        axis=1)
+    dist = (1 - normalize(dist)) if best_low else normalize(dist)
+    df["score"] *= score * dist
     df["score"] = normalize(df["score"])
     return df
 
@@ -51,7 +60,7 @@ def intersect(df_list):
 
 def get_higher(df):
     return df.groupby(["filename"]) \
-             .max(level="score") \
+             .mean() \
              .sort_values(by=["score"], ascending=False) \
              .index
 
