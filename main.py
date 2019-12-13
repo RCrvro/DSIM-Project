@@ -1,11 +1,9 @@
 import os
 import pyaudio
 import threading
-import time
 import numpy as np
 import pandas as pd
 import tkinter as tk
-from heapq import nlargest
 from PIL import Image, ImageTk
 
 import retrieval
@@ -73,7 +71,7 @@ class GUI:
         selected_photo = self.photo_names[n]
         self.df = retrieval.update_scores(self.df,
                                           selected_photo,
-                                          1.0)  # TODO: add method
+                                          score)  # TODO: add method
         self.clean_images()
         self.get_best_images()
 
@@ -117,7 +115,7 @@ def open_image(img_file, size):
     return ImageTk.PhotoImage(img)
 
 def get_audio_score(audio):
-    return np.random.uniform(-1, +1)
+    return +0.75
 
 
 if __name__ == "__main__":
