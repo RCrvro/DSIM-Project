@@ -1,4 +1,3 @@
-import os
 import pyaudio
 import threading
 import numpy as np
@@ -15,6 +14,13 @@ FREQ_AUDIO = 44100
 AUDIO_RANGE = 2**15
 AUDIO = pyaudio.PyAudio()
 
+FEATURES = ("VGG", "YOLO", "SIFT")
+DISTANCES = {
+    "VGG": ["cosine", "euclidean", "manhattan"],
+    "YOLO": ["cosine", "euclidean", "manhattan"],
+    "SIFT": ["orb"]
+}
+
 
 class GUI:
     def __init__(self):
@@ -29,9 +35,9 @@ class GUI:
         self.root.title("DSIM Project - Context Based IR")
         self.root.geometry("{}x{}".format(
             self.x0 * 2 + (self.columns * self.dim) +
-                ((self.columns - 1) * self.border),
-            self.y0 +30 + (self.rows * self.dim) +
-                ((self.rows - 1) * self.border)))
+            ((self.columns - 1) * self.border),
+            self.y0 + 30 + (self.rows * self.dim) +
+            ((self.rows - 1) * self.border)))
         self.root.resizable(False, False)
         self.query_interface = tk.Entry(self.root)
         self.query_interface.place(height=30, width=500,
@@ -42,6 +48,19 @@ class GUI:
                                       command=self.search)
         self.query_button.place(height=40, width=60,
                                 x=570, y=15)
+        self.features_var = tk.StringVar(self.root)
+        self.features_box = tk.OptionMenu(self.root,
+                                          self.features_var,
+                                          *FEATURES)
+        self.features_var.set(FEATURES[0])
+        self.features_box.place(height=30, width=120,
+                                x=700, y=20)
+        self.distance_var = tk.StringVar(self.root)
+        self.distance_box = tk.OptionMenu(self.root,
+                                          self.distance_var,
+                                          "")
+        self.distance_box.place(height=30, width=120,
+                                x=830, y=20)
         self.images = [tk.Canvas(self.root,
                                  height=200, width=200,
                                  bg="white")
@@ -63,15 +82,28 @@ class GUI:
             img.delete("all")
 
     def search(self):
-        self.df = retrieval.get_images_from_text(self.query_interface.get())
+        method = self.get_features_extractor()
+        self.update_distances(method)
+        self.df = retrieval.get_images_from_text(self.query_interface.get(),
+                                                 method)
         self.clean_images()
         self.get_best_images()
+
+    def update_distances(self, method):
+        self.distance_box["menu"].delete(0, "end")
+        for new_choice in DISTANCES[method]:
+            self.distance_box["menu"].add_command(
+                label=new_choice,
+                command=tk._setit(self.distance_var, new_choice))
+        self.distance_var.set(DISTANCES[method][0])
+        return
 
     def update_images(self, n, score):
         selected_photo = self.photo_names[n]
         self.df = retrieval.update_scores(self.df,
                                           selected_photo,
-                                          score)  # TODO: add method
+                                          score,
+                                          self.get_method())
         self.clean_images()
         self.get_best_images()
 
@@ -87,6 +119,12 @@ class GUI:
                                 image=photo)
             canvas.image = photo
 
+    def get_method(self):
+        return self.distance_var.get()
+
+    def get_features_extractor(self):
+        return self.features_var.get()
+
     def record_audio(self, n):
         out = []
         audio_stream = AUDIO.open(format=pyaudio.paInt16,
@@ -99,7 +137,8 @@ class GUI:
                                  dtype=np.int16) / AUDIO_RANGE
             out.append(data)
             volume = np.mean(np.abs(data)) * self.dim
-            self.images[n].create_line(i, self.dim, i, self.dim - volume, fill="blue")
+            self.images[n].create_line(i, self.dim, i, self.dim - volume,
+                                       fill="blue")
         out = np.hstack(out)
         score = get_audio_score(out)
         self.update_images(n, score)
@@ -113,6 +152,7 @@ def open_image(img_file, size):
     img = Image.open(img_file)
     img.thumbnail((size, size), Image.ANTIALIAS)
     return ImageTk.PhotoImage(img)
+
 
 def get_audio_score(audio):
     return +0.75

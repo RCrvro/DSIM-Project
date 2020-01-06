@@ -2,32 +2,44 @@ import re
 import os
 import pandas as pd
 import numpy as np
+from cv2 import BFMatcher
 from scipy.spatial import distance
 
 
-DEFAULT_METHOD = "VGG"  # "YOLO"
-DEFAULT_DISTANCE = "cosine"  # "euclidean"
-CLASSES = [re.sub("\..+", "", filename)
+DEFAULT_METHOD = "VGG"
+DEFAULT_DISTANCE = "cosine"
+CLASSES = [re.sub(r"\..+", "", filename)
            for filename in os.listdir(os.path.join("./data/",
                                                    DEFAULT_METHOD))]
-## BEST RESULTS:
-# YOLO: euclidean
-# VGG: cosine / euclidean
+
+
+def orb_distance(img1, img2, lowe_ratio=0.75):
+    bf = BFMatcher()
+    matches = sorted(bf.match(img1, img2),
+                     key=lambda x: x.distance)
+    good = [[m] for m, n in matches
+            if m.distance < lowe_ratio * n.distance]
+    return 1 - (len(good) / len(matches))
+
 
 def normalize(x):
     lim, Lim = x.min(), x.max()
     return (x - lim) / (Lim - lim)
 
+
 def dist(x, y, metric):
     dist_fn = {
         "euclidean": distance.euclidean,
         "cosine": distance.cosine,
-        "manhattan": distance.cityblock
+        "manhattan": distance.cityblock,
+        "orb": orb_distance
     }
     return dist_fn[metric](x, y)
 
+
 def get_best_distance(X, y, metric):
     return np.min([dist(x, y, metric) for x in X])
+
 
 def update_scores(df, filename, score, metric=DEFAULT_DISTANCE):
     classes = list(df["class"].unique())
@@ -45,12 +57,14 @@ def update_scores(df, filename, score, metric=DEFAULT_DISTANCE):
     df["score"] = normalize(df["score"])
     return df
 
-def open_dataset(category, method=DEFAULT_METHOD):
+
+def open_dataset(category, method):
     df = pd.read_csv("./data/{}/{}.csv".format(method, category),
                      names=["filename", "ratio", "features"],
                      header=None)
     df = df[df["features"].map(lambda x: "nan" not in x)]
     return df
+
 
 def intersect(df_list):
     files_list = [set(df["filename"]) for df in df_list]
@@ -58,17 +72,19 @@ def intersect(df_list):
     return [df[df["filename"].map(lambda x: x in selected_files)]
             for df in df_list]
 
+
 def get_higher(df):
     return df.groupby(["filename"]) \
              .mean() \
              .sort_values(by=["score"], ascending=False) \
              .index
 
-def get_images_from_text(text):
+
+def get_images_from_text(text, method=DEFAULT_METHOD):
     text = re.sub(r"\s+", " ", text.lower())
     selected_classes = [c for c in CLASSES
                         if re.search(r"\b" + re.escape(c) + r"\b", text)]
-    df_list = intersect([open_dataset(c) for c in selected_classes])
+    df_list = intersect([open_dataset(c, method) for c in selected_classes])
     for df, c in zip(df_list, selected_classes):
         df["features"] = df["features"].map(lambda x: np.array(eval(x)))
         df["score"] = normalize(df["ratio"])
