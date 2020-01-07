@@ -18,7 +18,7 @@ FEATURES = ("VGG", "YOLO", "SIFT")
 DISTANCES = {
     "VGG": ["cosine", "euclidean", "manhattan"],
     "YOLO": ["cosine", "euclidean", "manhattan"],
-    "SIFT": ["orb"]
+    "SIFT": ["sift"]
 }
 
 

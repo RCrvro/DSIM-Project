@@ -1,8 +1,8 @@
+import cv2
 import re
 import os
 import pandas as pd
 import numpy as np
-from cv2 import BFMatcher
 from scipy.spatial import distance
 
 
@@ -11,15 +11,12 @@ DEFAULT_DISTANCE = "cosine"
 CLASSES = [re.sub(r"\..+", "", filename)
            for filename in os.listdir(os.path.join("./data/",
                                                    DEFAULT_METHOD))]
+SIFT_MATCHER = cv2.BFMatcher()
 
 
-def orb_distance(img1, img2, lowe_ratio=0.75):
-    bf = BFMatcher()
-    matches = sorted(bf.match(img1, img2),
-                     key=lambda x: x.distance)
-    good = [[m] for m, n in matches
-            if m.distance < lowe_ratio * n.distance]
-    return 1 - (len(good) / len(matches))
+def sift_distance(img1, img2, lowe_ratio=0.75):
+    matches = SIFT_MATCHER.match(img1, img2)
+    return np.mean([m.distance for m in matches])
 
 
 def normalize(x):
@@ -32,7 +29,7 @@ def dist(x, y, metric):
         "euclidean": distance.euclidean,
         "cosine": distance.cosine,
         "manhattan": distance.cityblock,
-        "orb": orb_distance
+        "sift": sift_distance
     }
     return dist_fn[metric](x, y)
 
@@ -86,7 +83,7 @@ def get_images_from_text(text, method=DEFAULT_METHOD):
                         if re.search(r"\b" + re.escape(c) + r"\b", text)]
     df_list = intersect([open_dataset(c, method) for c in selected_classes])
     for df, c in zip(df_list, selected_classes):
-        df["features"] = df["features"].map(lambda x: np.array(eval(x)))
+        df["features"] = df["features"].map(lambda x: np.array(eval(x)).astype("float32"))
         df["score"] = normalize(df["ratio"])
         df["class"] = c
     return pd.concat([df[["filename", "class", "score", "features"]]
