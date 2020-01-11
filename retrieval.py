@@ -14,7 +14,7 @@ CLASSES = [re.sub(r"\..+", "", filename)
 SIFT_MATCHER = cv2.BFMatcher()
 
 
-def sift_distance(img1, img2, lowe_ratio=0.75):
+def sift_distance(img1, img2):
     matches = SIFT_MATCHER.match(img1, img2)
     return np.mean([m.distance for m in matches])
 

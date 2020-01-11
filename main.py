@@ -6,6 +6,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 
 import retrieval
+import text
 
 
 # Setting audio parameters
@@ -19,6 +20,13 @@ DISTANCES = {
     "VGG": ["cosine", "euclidean", "manhattan"],
     "YOLO": ["cosine", "euclidean", "manhattan"],
     "SIFT": ["sift"]
+}
+
+SCORES = {
+    "sì": +2/3,
+    "no": -2/3,
+    "forse": +1/3,
+    "non capisco": 0
 }
 
 
@@ -61,6 +69,12 @@ class GUI:
                                           "")
         self.distance_box.place(height=30, width=120,
                                 x=830, y=20)
+        self.text_label = tk.Label(self.root,
+                                   text=text.INITIAL_TEXT,
+                                   justify="left",
+                                   anchor="w")
+        self.text_label.place(height=20, width=1000,
+                              x=970, y=25)
         self.images = [tk.Canvas(self.root,
                                  height=200, width=200,
                                  bg="white")
@@ -74,6 +88,7 @@ class GUI:
                 self.images[i].place(height=self.dim, width=self.dim,
                                      x=self.x0+(self.dim + self.border)*x,
                                      y=self.y0+(self.dim + self.border)*y)
+        self.text_generator = text.text_generator()
         self.photo_names = []
         self.root.mainloop()
 
@@ -88,6 +103,8 @@ class GUI:
                                                  method)
         self.clean_images()
         self.get_best_images()
+        self.text_generator = text.text_generator()
+        self.text_label["text"] = text.SEARCH_TEXT
 
     def update_distances(self, method):
         self.distance_box["menu"].delete(0, "end")
@@ -96,7 +113,6 @@ class GUI:
                 label=new_choice,
                 command=tk._setit(self.distance_var, new_choice))
         self.distance_var.set(DISTANCES[method][0])
-        return
 
     def update_images(self, n, score):
         selected_photo = self.photo_names[n]
@@ -140,8 +156,9 @@ class GUI:
             self.images[n].create_line(i, self.dim, i, self.dim - volume,
                                        fill="blue")
         out = np.hstack(out)
-        score = get_audio_score(out)
-        self.update_images(n, score)
+        answare, person = get_audio_score(out)
+        self.text_label["text"] = self.text_generator(answare, person)
+        self.update_images(n, SCORES[answare])
 
     def press_button(self, n):
         th = threading.Thread(target=self.record_audio, args=[n])
@@ -155,7 +172,12 @@ def open_image(img_file, size):
 
 
 def get_audio_score(audio):
-    return +0.75
+    # get a random person
+    possible_p = ["Federico", "Pranav", "Riccardo", ""]
+    possible_a = ["sì", "no", "forse"]
+    person = np.random.choice(possible_p)
+    answare = np.random.choice(possible_a)
+    return (answare if person in text.FOLK else "non capisco"), person
 
 
 if __name__ == "__main__":
