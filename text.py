@@ -10,7 +10,7 @@ def different_person(p_new, p_old):
 
 def answare(ans, p):
     if p not in FOLK:
-        return "Non prendo ordini da te!"
+        return "Ma chi sei tu per darmi ordini?!"
     out = {
         "sì": "Ciao {}, mi fa piacere esserti d'aiuto".format(p),
         "no": "Mi spiace {}, starò più attento".format(p),
@@ -21,11 +21,11 @@ def answare(ans, p):
 
 
 def text_generator():
-    old = ""
+    old = "Unknown"
 
     def generate_text(ans, p):
         nonlocal old
-        if p and old and old != p:
+        if p != "Unknown" and old != "Unknown" and old != p:
             old_p, old = old, p
             return different_person(p, old_p)
         old = p

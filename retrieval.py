@@ -39,6 +39,8 @@ def get_best_distance(X, y, metric):
 
 
 def update_scores(df, filename, score, metric=DEFAULT_DISTANCE):
+    if not score:
+        return df
     classes = list(df["class"].unique())
     # sorry, it is very bad written (a for D: cycle)
     # but I cannot do in other ways
@@ -50,8 +52,8 @@ def update_scores(df, filename, score, metric=DEFAULT_DISTANCE):
                                       metric),
         axis=1)
     dist = 1 - normalize(dist)
-    df["score"] = ((1 - score) * df["score"]) + (score * dist)
-    df["score"] = normalize(df["score"])
+    df["score"] = normalize(df["score"] * (1 - np.abs(score)) +
+                            (score * dist))
     return df
 
 

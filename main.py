@@ -210,10 +210,10 @@ def extract_feature(X, sample_rate=88200):
 
 def get_audio_score(audio):
     y1 = model1.predict(audio.reshape(-1, 88200, 1).astype('float32'))
-    
+
     audio_features = extract_feature(audio)
     y2 = model2.predict(audio_features.reshape(1, -1))
-    
+
     what = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
                     (y1[0] + y2[0])/2))
     what_what = {0: 'forse', 1: 'no', 2: 'sì', -1: 'non capisco'}
