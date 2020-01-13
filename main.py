@@ -5,8 +5,12 @@ import pandas as pd
 import tkinter as tk
 from PIL import Image, ImageTk
 
+import librosa
+from tensorflow.keras.models import load_model
+
 import retrieval
 import text
+
 
 
 # Setting audio parameters
@@ -171,14 +175,67 @@ def open_image(img_file, size):
     return ImageTk.PhotoImage(img)
 
 
+def energy(input):
+    return np.sum((input*1.0)**2, keepdims=True)
+
+
+def sdev(input):
+    return np.std(input, keepdims=True)
+
+
+def aavg(input):
+    return np.mean(np.abs(input), keepdims=True)
+
+
+def extract_feature(X, sample_rate=88200):
+    X = X.reshape(sample_rate,)
+    stft = np.abs(librosa.stft(X))
+    mfccs = np.mean(librosa.feature.mfcc(y=X*1.0, sr=sample_rate,
+                                         n_mfcc=40).T,
+                    axis=0)
+    chroma = np.mean(librosa.feature.chroma_stft(S=stft,
+                                                 sr=sample_rate).T,
+                     axis=0)
+    mel = np.mean(librosa.feature.melspectrogram(X, sr=sample_rate).T, axis=0)
+    contrast = np.mean(librosa.feature.spectral_contrast(S=stft,
+                                                         sr=sample_rate).T,
+                       axis=0)
+    tonnetz = np.mean(librosa.feature.tonnetz(y=librosa.effects.harmonic(X),
+                                              sr=sample_rate).T, axis=0)
+    ene = energy(X)
+    sd = sdev(X)
+    avg = aavg(X)
+    return np.concatenate((mfccs, chroma, mel, contrast, tonnetz, ene, sd, avg))
+
+
 def get_audio_score(audio):
-    # get a random person
-    possible_p = ["Federico", "Pranav", "Riccardo", ""]
-    possible_a = ["sì", "no", "forse"]
-    person = np.random.choice(possible_p)
-    answare = np.random.choice(possible_a)
-    return (answare if person in text.FOLK else "non capisco"), person
+    y1 = model1.predict(audio.reshape(-1, 88200, 1).astype('float32'))
+    
+    audio_features = extract_feature(audio)
+    y2 = model2.predict(audio_features.reshape(1, -1))
+    
+    what = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
+                    (y1[0] + y2[0])/2))
+    what_what = {0: 'forse', 1: 'no', 2: 'sì', -1: 'non capisco'}
+    answare = list(map(lambda x: what_what[x], what))[0]
+
+    who = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
+                   np.hstack(((y1[1]+y2[1])/2,
+                              (y1[2]+y2[2])/2,
+                              (y1[3]+y2[3])/2))))
+    who = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
+                   np.hstack((y1[1],
+                              y1[2],
+                              y1[3]))))
+    who_person = {0: 'Riccardo', 1: 'Federico',
+                  2: 'Pranav', -1: 'Unknown'}
+    person = list(map(lambda x: who_person[x], who))[0]
+
+    print(answare, person)
+    return answare, person
 
 
 if __name__ == "__main__":
+    model1 = load_model("audio part/cnn_model.h5")
+    model2 = load_model("audio part/no_cnn_model.h5")
     gui = GUI()
