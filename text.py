@@ -15,7 +15,7 @@ def answare(ans, p):
         "sì": "Ciao {}, mi fa piacere esserti d'aiuto".format(p),
         "no": "Mi spiace {}, starò più attento".format(p),
         "forse": "Senza offesa {}, potresti essere più preciso?".format(p),
-        "non capico": "Potresti parlare più chiaramente per favore?"
+        "non capisco": "Potresti parlare più chiaramente per favore?"
     }
     return out[ans]
 
