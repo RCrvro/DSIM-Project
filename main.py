@@ -175,7 +175,7 @@ def open_image(img_file, size):
     return ImageTk.PhotoImage(img)
 
 
-def extract_feature(X, sample_rate=88200):
+def extract_feature(X, sample_rate=44100):
 
     def energy(input):
     	return np.sum((input*1.0)**2, keepdims=True)
@@ -186,7 +186,7 @@ def extract_feature(X, sample_rate=88200):
     def aavg(input):
     	return np.mean(np.abs(input), keepdims=True)
 
-    X = X.reshape(sample_rate,)
+    X = X.reshape(sample_rate*2,)
     stft = np.abs(librosa.stft(X))
     mfccs = np.mean(librosa.feature.mfcc(y=X*1.0, sr=sample_rate,
                                          n_mfcc=40).T,
