@@ -175,19 +175,17 @@ def open_image(img_file, size):
     return ImageTk.PhotoImage(img)
 
 
-def energy(input):
-    return np.sum((input*1.0)**2, keepdims=True)
-
-
-def sdev(input):
-    return np.std(input, keepdims=True)
-
-
-def aavg(input):
-    return np.mean(np.abs(input), keepdims=True)
-
-
 def extract_feature(X, sample_rate=88200):
+
+    def energy(input):
+    	return np.sum((input*1.0)**2, keepdims=True)
+
+    def sdev(input):
+    	return np.std(input, keepdims=True)
+
+    def aavg(input):
+    	return np.mean(np.abs(input), keepdims=True)
+
     X = X.reshape(sample_rate,)
     stft = np.abs(librosa.stft(X))
     mfccs = np.mean(librosa.feature.mfcc(y=X*1.0, sr=sample_rate,
@@ -214,23 +212,26 @@ def get_audio_score(audio):
     audio_features = extract_feature(audio)
     y2 = model2.predict(audio_features.reshape(1, -1))
 
-    what = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
-                    (y1[0] + y2[0])/2))
+    what = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.5 else -1,
+                    (2*y1[0] + y2[0])/3))
     what_what = {0: 'forse', 1: 'no', 2: 'sì', -1: 'non capisco'}
     answare = list(map(lambda x: what_what[x], what))[0]
 
-    who = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
-                   np.hstack(((y1[1]+y2[1])/2,
-                              (y1[2]+y2[2])/2,
-                              (y1[3]+y2[3])/2))))
-    who = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
-                   np.hstack((y1[1],
-                              y1[2],
-                              y1[3]))))
+    who = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.5 else -1,
+                   np.hstack(((2*y1[1]+y2[1])/3,
+                              (2*y1[2]+y2[2])/3,
+                              (2*y1[3]+y2[3])/3))))
+    #who = list(map(lambda x: np.argmax(x) if x[np.argmax(x)] > 0.8 else -1,
+    #               np.hstack((y1[1],
+    #                          y1[2],
+    #                          y1[3]))))
     who_person = {0: 'Riccardo', 1: 'Federico',
                   2: 'Pranav', -1: 'Unknown'}
     person = list(map(lambda x: who_person[x], who))[0]
-
+    print((2*y1[0] + y2[0])/3)
+    print(np.hstack(((2*y1[1]+y2[1])/3,
+               (2*y1[2]+y2[2])/3,
+               (2*y1[3]+y2[3])/3)))
     print(answare, person)
     return answare, person
 
